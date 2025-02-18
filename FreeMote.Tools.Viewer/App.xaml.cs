@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Windows;
 using FreeMote.Plugins;
@@ -16,9 +17,12 @@ namespace FreeMote.Tools.Viewer
     {
         public static uint Width { get; set; } = 1280;
         public static uint Height { get; set; } = 720;
+        public static uint Top { get; set; } = 0;
+        public static uint Left { get; set; } = 0;
+        public static float Scale { get; set; } = 1.0f;
         public static bool DirectLoad { get; set; } = false;
-        public static List<string> PsbPaths { get; set; }
-        public static List<string> TempFilePaths { get; set; } = new List<string>();
+        public static List<string> OriPaths{get;set;}
+        public static List<string> PsbPaths { get; set; }=new List<string>();
         internal static bool NeedRemoveTempFile { get; set; } = false;
     }
 
@@ -44,13 +48,14 @@ namespace FreeMote.Tools.Viewer
             var optHeight = app.Option<uint>("-h|--height", "Set Window height", CommandOptionType.SingleValue);
             var optDirectLoad = app.Option("-d|--direct", "Just load with EMT driver, don't try parsing with FreeMote first", CommandOptionType.NoValue);
             var optFixMetadata = app.Option("-nf|--no-fix", "Don't try to apply metadata fix (for partial exported or krkr PSBs). Can't work together with `-d`", CommandOptionType.NoValue);
+            var optConfigFile = app.Option<string>("-c|--config", "Using config file show psb", CommandOptionType.SingleValue);
 
             //args
             var argPath = app.Argument("Files", "File paths", multipleValues: true);
 
             app.OnExecute(() =>
             {
-                if (argPath.Values.Count == 0 || optHelp.HasValue())
+                if ((argPath.Values.Count == 0 || optHelp.HasValue())&&!optConfigFile.HasValue())
                 {
                     var help = app.GetHelpText();
                     MessageBox.Show(help, "FreeMote Viewer Help", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -58,23 +63,43 @@ namespace FreeMote.Tools.Viewer
                     return;
                 }
 
-                Core.PsbPaths = argPath.Values.ToList();
-                Core.PsbPaths.RemoveAll(f => !File.Exists(f));
+                if (optConfigFile.HasValue())
+                {
+                    var filename = optConfigFile.Value();
+                    if (!File.Exists(filename))
+                    {
+                        Console.WriteLine($"Can't find config file:{filename}");
+                        return;
+                    }
+                    var configJson = ConfigFile.Load(filename);
+                    Core.OriPaths = configJson.FileNames;
+                    Core.Width=configJson.Width;
+                    Core.Height=configJson.Height;
+                    Core.Top = configJson.Top;
+                    Core.Left = configJson.Left;
+                    Core.Scale = configJson.Scale;
+                }
+                else
+                {
+                    Core.OriPaths = argPath.Values.ToList();
+                    if (optWidth.HasValue())
+                    {
+                        Core.Width = optWidth.ParsedValue;
+                    }
 
-                if (Core.PsbPaths.Count == 0)
+                    if (optHeight.HasValue())
+                    {
+                        Core.Height = optHeight.ParsedValue;
+                    }
+                }
+
+                
+                Core.OriPaths.RemoveAll(f => !File.Exists(f));
+
+                if (Core.OriPaths.Count == 0)
                 {
                     Console.WriteLine("No file specified.");
                     return;
-                }
-                
-                if (optWidth.HasValue())
-                {
-                    Core.Width = optWidth.ParsedValue;
-                }
-
-                if (optHeight.HasValue())
-                {
-                    Core.Height = optHeight.ParsedValue;
                 }
 
                 if (!optDirectLoad.HasValue())
@@ -84,10 +109,9 @@ namespace FreeMote.Tools.Viewer
                         //Consts.FastMode = false;
                         FreeMount.Init();
                         var ctx = FreeMount.CreateContext();
-                        for (int i = 0; i < Core.PsbPaths.Count; i++)
+                        for (int i = 0; i < Core.OriPaths.Count; i++)
                         {
-                            var oriPath = Core.PsbPaths[i];
-                            using var fs = File.OpenRead(oriPath);
+                            using var fs = File.OpenRead(Core.OriPaths[i]);
                             string currentType = null;
                             using var ms = ctx.OpenFromShell(fs, ref currentType);
                             var psb = ms != null ? new PSB(ms) : new PSB(fs);
@@ -114,8 +138,7 @@ namespace FreeMote.Tools.Viewer
                             //File.WriteAllText("output.json", PsbDecompiler.Decompile(psb));
                             var tempFile = Path.GetTempFileName();
                             File.WriteAllBytes(tempFile, psb.Build());
-                            Core.PsbPaths[i] = tempFile;
-                            Core.TempFilePaths.Add(tempFile);
+                            Core.PsbPaths.Add(tempFile);
                             Core.NeedRemoveTempFile = true;
                         }
 
@@ -138,6 +161,7 @@ namespace FreeMote.Tools.Viewer
                 }
                 else
                 {
+                    Core.PsbPaths = Core.OriPaths;
                     Core.DirectLoad = true;
                 }
 
@@ -171,9 +195,9 @@ namespace FreeMote.Tools.Viewer
 
         private static void CleanTempFiles()
         {
-            if (Core.NeedRemoveTempFile && Core.TempFilePaths?.Count > 0)
+            if (Core.NeedRemoveTempFile && Core.PsbPaths?.Count > 0)
             {
-                foreach (var tempPath in Core.TempFilePaths)
+                foreach (var tempPath in Core.PsbPaths)
                 {
                     File.Delete(tempPath);
                 }
@@ -181,7 +205,7 @@ namespace FreeMote.Tools.Viewer
                 Core.NeedRemoveTempFile = false;
             }
 
-            Core.TempFilePaths = new List<string>();
+            Core.PsbPaths = new List<string>();
         }
 
         private static string PrintHelp()

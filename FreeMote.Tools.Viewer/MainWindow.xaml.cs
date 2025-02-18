@@ -2,6 +2,7 @@
  *  Copyright © Ulysses Wu 2015-2024
  */
 
+using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -82,14 +83,19 @@ namespace FreeMote.Tools.Viewer
             //double y = SystemParameters.WorkArea.Height; //得到屏幕工作区域高度
             //double x1 = SystemParameters.PrimaryScreenWidth; //得到屏幕整体宽度
             //double y1 = SystemParameters.PrimaryScreenHeight; //得到屏幕整体高度
-
+            
             //WindowStartupLocation = WindowStartupLocation.Manual;
             //Left = x1 - 800;
             //Top = y1 - 600;
             // parse the XAML
             InitializeComponent();
+            WindowStartupLocation = WindowStartupLocation.Manual;
             //Topmost = true;
-            CreatePlayer(Core.Width, Core.Height);
+            Top = Core.Top;
+            Left = Core.Left;
+            Width = Core.Width;
+            Height = Core.Height;
+            CreatePlayer(Core.Width, Core.Height,Core.Scale);
         }
 
         public void CreatePlayer(double width, double height, float scale = 1f, float? x = null, float? y = null)
@@ -633,6 +639,28 @@ namespace FreeMote.Tools.Viewer
         private void ResetScale(object sender, RoutedEventArgs e)
         {
             _player.SetScale(1);
+        }
+
+        private void SaveConfig(object sender, RoutedEventArgs e)
+        {
+            ConfigJson json = new ConfigJson();
+            json.FileNames = Core.OriPaths;
+            json.Width = (uint) Width;
+            json.Height = (uint) Height;
+            json.Left = (uint) Left;
+            json.Top = (uint) Top;
+            json.Scale = _player.GetScale();
+
+            SaveFileDialog sfd = new SaveFileDialog();
+            sfd.Filter="文本文件| *.json";
+            sfd.ShowDialog();
+
+            var path=sfd.FileName;
+            if (path != "")
+            {
+                ConfigFile.Save(path, json);
+            }
+            
         }
     }
 }
