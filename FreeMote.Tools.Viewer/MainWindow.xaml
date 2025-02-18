@@ -6,16 +6,20 @@
         Height="720"
         WindowStartupLocation="CenterScreen"
         Background="Transparent"
-        Closing="Window_Closing" SizeChanged="Window_SizeChanged"
+        Closing="Window_Closing" SizeChanged="Window_SizeChanged" WindowStyle="None" AllowsTransparency="True"
 >
     <!-- Background="{StaticResource NekoHacksScene}" -->
     <Grid>
-        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" PanningMode="None" Grid.ColumnSpan="2" Grid.RowSpan="2" PreviewMouseWheel="ScrollViewer_PreviewMouseWheel">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="103*"/>
+            <ColumnDefinition Width="1177*"/>
+        </Grid.ColumnDefinitions>
+        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" PanningMode="None" Grid.ColumnSpan="2" PreviewMouseWheel="ScrollViewer_PreviewMouseWheel">
             <Rectangle MouseMove="MainWindow_MouseMove" Fill="{StaticResource NekoHacksScene}" />
         </ScrollViewer>
-        <Label Name="CenterMark" Content="+" HorizontalAlignment="Center" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" VerticalAlignment="Center" FontSize="24" Foreground="Gold" />
+        <Label Name="CenterMark" Content="+" HorizontalAlignment="Left" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" VerticalAlignment="Center" FontSize="24" Foreground="Gold" Grid.Column="1" Margin="523,0,0,0" />
         <TextBlock Name="CharaCenterMark"  HorizontalAlignment="Left" VerticalAlignment="Top" FontSize="20" Foreground="Red" Margin="0" Width="25" Height="28" Text="+" TextAlignment="Center"  />
-        <Grid>
+        <Grid Grid.ColumnSpan="2">
             <Grid.RowDefinitions>
                 <RowDefinition Height="40"/>
                 <RowDefinition Height="*"/>
